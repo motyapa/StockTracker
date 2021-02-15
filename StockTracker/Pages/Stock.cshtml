@@ -1,0 +1,160 @@
+﻿@page
+@model StockTracker.StockModel
+
+@{
+    ViewData["Title"] = "Stock Tracker";
+}
+<html>
+    <body>
+        <div id="container">
+            <div id="chartDiv" style="width: 100%; height: 70%">
+                <canvas id="myChart" style="height:100%"></canvas>
+            </div>
+            <div id="inputDiv" style="width: 100%; height: 20%">
+                <form id="FormInfo">
+                    <div class="form-group">
+                        <label for="StockTicker">Ticker</label>
+                        <input type="text" class="form-control" id="StockTickerInput" placeholder="Enter ticker" style="width:20%">
+                    </div>
+                    <div class="form-group">
+                        <label for="TradingDays">How Many Trading Days?</label>
+                        <input type="number" class="form-control" id="TradingDaysInput" placeholder="Trading Days" style="width:20%">
+                    </div>
+                    <div class="form-group">
+                        <label for="TradingDays">Moving Average Day Count</label>
+                        <input type="number" class="form-control" id="MovingAverageDays" placeholder="Moving Average Days" style="width:20%">
+                    </div>
+                    <div class="form-group">
+                        <label for="TradingDays">Exponential Average Day Count</label>
+                        <input type="number" class="form-control" id="ExponentialAverageDays" placeholder="Exponential Average Days" style="width:20%">
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="SearchInfoBtn">Search</button>
+                </form>           
+            </div>
+        </div>
+        <a href="https://iexcloud.io">Data provided by IEX Cloud</a>
+    </body>     
+</html>
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+<script>
+    var ctx = document.getElementById('myChart').getContext('2d');
+
+    var currDataCount = 0;
+
+    var myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                //{
+                //    label: "No chart to track info for yet :'(",
+                //    fill: false,
+                //    lineTension: 0.1,
+                //    backgroundColor: "rgba(75,192,192,0.4)",
+                //    borderColor: "rgba(75,192,192,1)",
+                //    borderCapStyle: 'butt',
+                //    borderDash: [],
+                //    borderDashOffset: 0.0,
+                //    borderJoinStyle: 'miter',
+                //    pointBorderColor: "rgba(75,192,192,1)",
+                //    pointBackgroundColor: "#fff",
+                //    pointBorderWidth: 1,
+                //    pointHoverRadius: 5,
+                //    pointHoverBackgroundColor: "rgba(75,192,192,1)",
+                //    pointHoverBorderColor: "rgba(220,220,220,1)",
+                //    pointHoverBorderWidth: 2,
+                //    pointRadius: 1,
+                //    pointHitRadius: 10,
+                //    data: [],
+                //    spanGaps: false,
+                //}
+            ]
+        },
+        options: {
+            tooltips: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true
+                    }
+                }]
+            },
+            legend: {
+                display: true,
+                position: 'right'
+            },
+            maintainAspectRatio: false
+        }
+    });
+
+    $(document).ready(function (e) {
+        $("#SearchInfoBtn").click(function (e) {
+            debugger;
+            e.preventDefault();
+            ajax_chart(myChart, $("#StockTickerInput").val(), $("#TradingDaysInput").val(), $("#MovingAverageDays").val(), $("#ExponentialAverageDays").val());
+        });
+    });
+    
+    // function to update our chart
+    function ajax_chart(chart, tickerVar, dayCountVar, movingAverageVar, exponentialAverageVar) {           
+        debugger;
+        $.ajax({
+            type: "GET",
+            url: "/Stock",
+            data: { ticker: tickerVar, dayCount: dayCountVar, movingAverageDays: movingAverageVar, exponentialAverageDays: exponentialAverageVar },
+            dataType: "json",
+            contentType: "application/json; charset=utf-8"
+        }).done(function (data) {
+            debugger;
+            if (data.error == null) {
+                if (currDataCount == 0) {
+                    chart.data.labels = data.dates;
+                }   
+                chart.data.datasets.push({});
+                chart.data.datasets[currDataCount].data = data.values; // or you can iterate for multiple datasets
+                if (movingAverageVar != "") {
+                    chart.data.datasets[currDataCount].label = `${tickerVar} ${movingAverageVar} trading day average for ${dayCountVar} trading days`;
+                } else if (exponentialAverageVar != "") {
+                    chart.data.datasets[currDataCount].label = `${tickerVar} ${exponentialAverageVar} exponential trading day average for ${dayCountVar} trading days`;
+                }                  
+                chart.data.datasets[currDataCount].fill = false;
+                chart.data.datasets[currDataCount].lineTension = .1;
+                var redInt = Math.floor(Math.random() * 256);
+                var greenInt = Math.floor(Math.random() * 256); 
+                var blueInt = Math.floor(Math.random() * 256);
+                chart.data.datasets[currDataCount].backgroundColor = `rgba(${redInt}, ${greenInt}, ${blueInt}, .4)`;
+                chart.data.datasets[currDataCount].borderColor = `rgba(${redInt}, ${greenInt}, ${blueInt})`;
+                currDataCount++;
+                chart.update(); // finally update our chart
+            } else {
+                alert(data.error);
+            }              
+        })           
+    }
+</script>
+
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        width: 100%;
+    }
+
+    #container {
+        position:relative;
+        top:0;
+        left:0;
+        height:100%;
+        width:100%;
+    }
+</style>
